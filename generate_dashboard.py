@@ -1,12 +1,21 @@
 import os
-import io
-import base64
-import tarfile
+import time
 import json
 import hashlib
 from datetime import datetime, timedelta
 from garminconnect import Garmin
 from google import genai
+
+def wait_for_otp():
+    for _ in range(36):
+        time.sleep(5)
+        os.system("git pull --rebase -q")
+        if os.path.exists("otp.txt"):
+            with open("otp.txt", "r") as f:
+                code = f.read().strip()
+            if len(code) == 6 and code.isdigit():
+                return code
+    raise TimeoutError("หมดเวลารอกรอกรหัส OTP (เกิน 3 นาที)")
 
 def init_garmin():
     token_file = "garmin_token.json"
@@ -18,16 +27,16 @@ def init_garmin():
             client.client.loads(token_data)
             return client
 
-    mfa_code = os.environ.get("GARMIN_MFA_CODE", "").strip()
     client = Garmin(
         os.environ.get("GARMIN_EMAIL", "").strip(),
         os.environ.get("GARMIN_PASSWORD", "").strip(),
-        prompt_mfa=lambda: mfa_code
+        prompt_mfa=wait_for_otp
     )
     client.login()
     with open(token_file, "w") as f:
         f.write(client.client.dumps())
-    return client 
+    return client
+
 def gather_data(client):
     tz_now = datetime.utcnow() + timedelta(hours=7)
     today_str = tz_now.date().isoformat()
@@ -51,7 +60,7 @@ def gather_data(client):
         if act_date >= seven_days_ago.isoformat():
             dur_min = round(act.get("duration", 0) / 60, 1)
             act_type = act.get("activityType", {}).get("typeKey", "")
-
+            
             if any(k in act_type for k in ["walk", "run", "treadmill", "cycling", "cardio"]):
                 cardio_min_7d += dur_min
                 if act_date in daily_cardio_map:
