@@ -10,7 +10,7 @@ from google import genai
 
 def init_garmin():
     token_b64 = os.environ.get("GARMIN_TOKEN_B64", "").strip()
-    token_dir = os.path.expanduser("~/.garminconnect")
+    token_dir = os.path.expanduser("~/.garth")
     if token_b64 and not os.path.exists(token_dir):
         tar_bytes = base64.b64decode(token_b64)
         with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:gz") as tar:
