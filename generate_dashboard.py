@@ -9,19 +9,25 @@ from garminconnect import Garmin
 from google import genai
 
 def init_garmin():
-    token_b64 = os.environ.get("GARMIN_TOKEN_B64", "").strip()
-    token_dir = os.path.expanduser("~/.garth")
-    if token_b64 and not os.path.exists(token_dir):
-        tar_bytes = base64.b64decode(token_b64)
-        with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:gz") as tar:
-            tar.extractall(path=os.path.expanduser("~"))
+    token_file = "garmin_token.json"
+    if os.path.exists(token_file):
+        with open(token_file, "r") as f:
+            token_data = f.read().strip()
+        if token_data:
+            client = Garmin()
+            client.client.loads(token_data)
+            return client
+
+    mfa_code = os.environ.get("GARMIN_MFA_CODE", "").strip()
     client = Garmin(
         os.environ.get("GARMIN_EMAIL", "").strip(),
-        os.environ.get("GARMIN_PASSWORD", "").strip()
+        os.environ.get("GARMIN_PASSWORD", "").strip(),
+        prompt_mfa=lambda: mfa_code
     )
-    client.login(tokenstore=token_dir)
-    return client
-
+    client.login()
+    with open(token_file, "w") as f:
+        f.write(client.client.dumps())
+    return client 
 def gather_data(client):
     tz_now = datetime.utcnow() + timedelta(hours=7)
     today_str = tz_now.date().isoformat()
